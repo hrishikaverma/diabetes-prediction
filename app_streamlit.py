@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 import joblib
 import base64
 
-st.set_page_config(page_title="Diabetes Prediction", layout="centered")
+st.set_page_config(page_title="GlucoPredict – Early Diabetes Alert", layout="centered")
 
-# ---------- CSS for background ----------
+# ---------- CSS for background and text styling ----------
 def set_bg(image_file):
     with open(image_file, "rb") as f:
         encoded = base64.b64encode(f.read()).decode()
@@ -19,13 +19,62 @@ def set_bg(image_file):
             background-image: url("data:image/jpg;base64,{encoded}");
             background-size: cover;
             background-attachment: fixed;
+            color: #ffffff;
+        }}
+
+        h1 {{
+            font-size: 3rem !important;
+            font-weight: bold;
+            color: #ffffff !important;
+            text-shadow: 2px 2px 5px #000000;
+        }}
+
+        .subtitle {{
+            font-size: 90px;
+            font-weight: 500;
+            color: #e0e0e0;
+            text-shadow: 1px 1px 2px #000000;
+            margin-bottom: 25px;
+        }}
+
+        .stTabs [role="tab"] {{
+            font-size: 1.2rem !important;
+            font-weight: 600;
+        }}
+
+        h2, h3, h4, h5, h6 {{
+            color: #ffffff !important;
+            text-shadow: 1px 1px 2px #000000;
+        }}
+
+        label, .stNumberInput label, .stTextInput label {{
+            color: #ffffff !important;
+            font-weight: 600;
+        }}
+
+        input {{
+            background-color: rgba(255, 255, 255, 0.15);
+            color: #ffffff !important;
+            border-radius: 5px;
+        }}
+
+        .stDownloadButton button, .stButton button {{
+            background-color: #2e7d32;
+            color: white;
+            border-radius: 6px;
+            padding: 8px 16px;
+            font-weight: bold;
+        }}
+
+        .css-1d391kg p {{
+            color: #ffffff;
         }}
         </style>
         """,
         unsafe_allow_html=True
     )
 
-set_bg("Bg.png")  # 🎨 Your background image file
+set_bg("Bg.png")  # Background image
 
 # ---------- Load Model & Scaler ----------
 model = joblib.load('diabetes_model.pkl')
@@ -46,15 +95,15 @@ if st.sidebar.checkbox("Show Heatmap"):
     st.sidebar.pyplot(fig)
 
 # ---------- Main Title ----------
-st.title("🩺 Diabetes Prediction App with CSV Upload")
-st.markdown("Use manual input or upload a CSV to get predictions.")
+st.title("🩺 GlucoPredict – Early Diabetes Alert")
+st.markdown('<p class="subtitle">Use manual input or upload a CSV to get predictions.</p>', unsafe_allow_html=True)
 
-# ---------- Tabs for Input vs CSV ----------
+# ---------- Tabs ----------
 tab1, tab2 = st.tabs(["📝 Manual Input", "📂 CSV Upload"])
 
 # ---------- Tab 1: Manual Input ----------
 with tab1:
-    st.subheader("Enter your medical details:")
+    st.subheader("🧾 Enter your medical details:")
 
     with st.form("input_form"):
         col1, col2 = st.columns(2)
