@@ -31,7 +31,7 @@ def set_bg(image_file):
         }}
 
         .subtitle {{
-            font-size: 90px;
+            font-size: 1.6rem;
             font-weight: 500;
             color: #e0e0e0;
             text-shadow: 1px 1px 2px #000000;
