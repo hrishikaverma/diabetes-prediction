@@ -17,60 +17,39 @@ def set_bg(image_file):
         f"""
         <style>
         .stApp {{
-            background: url("data:image/jpg;base64,{encoded}") no-repeat center center fixed;
+            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)),
+                        url("data:image/jpg;base64,{encoded}") no-repeat center center fixed;
             background-size: cover;
         }}
 
         @media only screen and (max-width: 768px) {{
             .stApp {{
-                background-position: center top;
-                background-size: contain;
-                background-repeat: no-repeat;
                 background-attachment: scroll;
+                background-position: center top;
+                background-size: cover;
             }}
         }}
 
-        h1 {{
-            font-size: 2.5rem !important;
-            font-weight: bold;
-            color: #ffffff !important;
-            text-shadow: 2px 2px 5px #000000;
+        h1, h2, h3, h4, h5, h6 {{
+            color: #fff !important;
+            text-shadow: 1px 1px 3px black;
         }}
 
-        .subtitle {{
-            font-size: 1.4rem;
-            font-weight: 500;
-            color: #e0e0e0;
-            text-shadow: 1px 1px 2px #000000;
-            margin-bottom: 25px;
+        .subtitle, p, label, .stMarkdown, .stNumberInput label {{
+            color: #f0f0f0 !important;
         }}
 
-        h2, h3, h4, h5, h6 {{
-            color: #ffffff !important;
-            text-shadow: 1px 1px 2px #000000;
+        input, .stTextInput input {{
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #fff !important;
         }}
 
-        label, .stNumberInput label, .stTextInput label {{
-            color: #ffffff !important;
-            font-weight: 600;
-        }}
-
-        input {{
-            background-color: rgba(255, 255, 255, 0.15);
-            color: #ffffff !important;
-            border-radius: 5px;
-        }}
-
-        .stDownloadButton button, .stButton button {{
+        .stButton>button, .stDownloadButton>button {{
             background-color: #2e7d32;
             color: white;
-            border-radius: 6px;
+            border: none;
+            border-radius: 5px;
             padding: 8px 16px;
-            font-weight: bold;
-        }}
-
-        .css-1d391kg p {{
-            color: #ffffff;
         }}
         </style>
         """,
@@ -104,7 +83,7 @@ if st.sidebar.checkbox("Show Heatmap"):
     st.sidebar.pyplot(fig)
 
 # ---------- Main Title ----------
-st.title("🩺 GlucoPredict – Early Diabetes Alert")
+st.title("🯪 GlucoPredict – Early Diabetes Alert")
 st.markdown('<p class="subtitle">Use manual input or upload a CSV to get predictions.</p>', unsafe_allow_html=True)
 
 # ---------- Tabs ----------
@@ -138,7 +117,7 @@ with tab1:
             if prediction == 1:
                 st.error("⚠️ You may have **diabetes**. Please consult a doctor.")
                 st.info(
-                    "## 🩺 Precautions & Tips\n"
+                    "## 🯪 Precautions & Tips\n"
                     "- 🥦 Eat a high-fiber, low-carb diet\n"
                     "- 🏃 Regular exercise (30 min daily)\n"
                     "- 🚫 Avoid sugar-sweetened beverages\n"
@@ -163,7 +142,6 @@ with tab2:
             df = pd.read_csv(uploaded_file)
             st.write("✅ Uploaded Data Preview:", df.head())
 
-            # Validate columns
             required_cols = [
                 "Pregnancies", "Glucose", "BloodPressure", "SkinThickness",
                 "Insulin", "BMI", "DiabetesPedigreeFunction", "Age"
@@ -179,10 +157,9 @@ with tab2:
                 st.success("✅ Bulk prediction complete.")
                 st.dataframe(df)
 
-                # Provide download button for results CSV
                 csv_result = df.to_csv(index=False).encode()
                 st.download_button(
-                    label="📥 Download Prediction Results",
+                    label="📅 Download Prediction Results",
                     data=csv_result,
                     file_name="prediction_results.csv",
                     mime="text/csv"
