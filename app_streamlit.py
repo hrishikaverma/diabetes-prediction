@@ -17,30 +17,32 @@ def set_bg(image_file):
         f"""
         <style>
         .stApp {{
-            background-image: url("data:image/jpg;base64,{encoded}");
+            background: url("data:image/jpg;base64,{encoded}") no-repeat center center fixed;
             background-size: cover;
-            background-attachment: fixed;
-            color: #ffffff;
+        }}
+
+        @media only screen and (max-width: 768px) {{
+            .stApp {{
+                background-position: center top;
+                background-size: contain;
+                background-repeat: no-repeat;
+                background-attachment: scroll;
+            }}
         }}
 
         h1 {{
-            font-size: 3rem !important;
+            font-size: 2.5rem !important;
             font-weight: bold;
             color: #ffffff !important;
             text-shadow: 2px 2px 5px #000000;
         }}
 
         .subtitle {{
-            font-size: 1.6rem;
+            font-size: 1.4rem;
             font-weight: 500;
             color: #e0e0e0;
             text-shadow: 1px 1px 2px #000000;
             margin-bottom: 25px;
-        }}
-
-        .stTabs [role="tab"] {{
-            font-size: 1.2rem !important;
-            font-weight: 600;
         }}
 
         h2, h3, h4, h5, h6 {{
@@ -75,8 +77,8 @@ def set_bg(image_file):
         unsafe_allow_html=True
     )
 
-# Set the background image here
-set_bg("Bg.png")  # Make sure Bg.png is in the same directory or provide full path
+# ---------- Set background ----------
+set_bg("Bg.png")
 
 # ---------- Load Model, Scaler and Dataset ----------
 try:
@@ -105,7 +107,7 @@ if st.sidebar.checkbox("Show Heatmap"):
 st.title("🩺 GlucoPredict – Early Diabetes Alert")
 st.markdown('<p class="subtitle">Use manual input or upload a CSV to get predictions.</p>', unsafe_allow_html=True)
 
-# ---------- Tabs for Input Options ----------
+# ---------- Tabs ----------
 tab1, tab2 = st.tabs(["📝 Manual Input", "📂 CSV Upload"])
 
 # ---------- Tab 1: Manual Input ----------
@@ -152,10 +154,8 @@ with tab1:
 # ---------- Tab 2: CSV Upload ----------
 with tab2:
     st.subheader("📂 Upload CSV File")
-    st.markdown(
-        "Your CSV must have the following columns (without `Outcome` column):"
-    )
-    st.code("Pregnancies, Glucose, BloodPressure, SkinThickness, Insulin, BMI, DiabetesPedigreeFunction, Age", language='text')
+    st.markdown("Your CSV must have the following columns (without `Outcome` column):")
+    st.code("Pregnancies, Glucose, BloodPressure, SkinThickness, Insulin, BMI, DiabetesPedigreeFunction, Age")
 
     uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
     if uploaded_file is not None:
