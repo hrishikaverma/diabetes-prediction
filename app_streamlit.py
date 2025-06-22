@@ -10,6 +10,8 @@ from datetime import datetime
 from sklearn.metrics import confusion_matrix, classification_report, roc_curve, auc
 from fpdf import FPDF
 import csv
+import smtplib
+from email.message import EmailMessage
 
 # ---------- Initialize user history file ----------
 history_file = "user_history.csv"
@@ -88,6 +90,29 @@ def plot_roc_curve(model, X_test, y_test):
         st.warning(f"ROC Error: {e}")
         return None
 
+# ---------- Email Sending Function ----------
+def send_email_with_pdf(receiver_email, pdf_bytes, user_name):
+    try:
+        sender_email = "glucopredict@gmail.com"  # CHANGE THIS
+        app_password = "iwxr fvro riji wcvy"    # CHANGE THIS (Gmail App Password)
+
+        msg = EmailMessage()
+        msg['Subject'] = '🧾 Your Diabetes Prediction Report'
+        msg['From'] = sender_email
+        msg['To'] = receiver_email
+        msg.set_content(f"Hi {user_name},\n\nPlease find attached your diabetes prediction report.\n\nStay healthy!\n- GlucoPredict")
+
+        msg.add_attachment(pdf_bytes, maintype='application', subtype='pdf', filename='Diabetes_Report.pdf')
+
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(sender_email, app_password)
+            smtp.send_message(msg)
+
+        return True
+    except Exception as e:
+        st.error(f"❌ Failed to send email: {e}")
+        return False
+
 # ---------- Sidebar ----------
 st.sidebar.title("📊 Data Insights")
 
@@ -133,9 +158,7 @@ st.title("🯪 GlucoPredict – Early Diabetes Alert")
 st.markdown('<p class="subtitle">Use manual input or upload a CSV to get predictions.</p>', unsafe_allow_html=True)
 
 tabs = st.tabs(["📝 Manual Input", "📂 CSV Upload", "📜 User History"])
-tab1 = tabs[0]
-tab2 = tabs[1]
-tab3 = tabs[2]
+tab1, tab2, tab3 = tabs
 
 # ---------- Tab 1: Manual Input ----------
 with tab1:
@@ -174,6 +197,7 @@ with tab1:
                 else:
                     st.success("✅ You are likely not diabetic. Keep it up! 💪")
 
+                # Save to history CSV
                 new_row = pd.DataFrame([{
                     "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "Name": name,
@@ -198,6 +222,37 @@ with tab1:
 
                 st.success("✅ User data and prediction saved to history.")
                 st.dataframe(new_row)
+
+                # Create PDF report
+                pdf = FPDF()
+                pdf.add_page()
+                pdf.set_font("Arial", 'B', 14)
+                pdf.cell(0, 10, "Diabetes Prediction Report", 0, 1, 'C')
+                pdf.set_font("Arial", size=12)
+                pdf.ln(5)
+                pdf.cell(0, 10, f"Name: {name}", ln=True)
+                pdf.cell(0, 10, f"Email: {email}", ln=True)
+                pdf.cell(0, 10, f"Address: {address}", ln=True)
+                pdf.cell(0, 10, f"Blood Group: {blood_group}", ln=True)
+                pdf.cell(0, 10, f"Pregnancies: {pregnancies}", ln=True)
+                pdf.cell(0, 10, f"Glucose: {glucose}", ln=True)
+                pdf.cell(0, 10, f"Blood Pressure: {bp}", ln=True)
+                pdf.cell(0, 10, f"Skin Thickness: {skin}", ln=True)
+                pdf.cell(0, 10, f"Insulin: {insulin}", ln=True)
+                pdf.cell(0, 10, f"BMI: {bmi}", ln=True)
+                pdf.cell(0, 10, f"Diabetes Pedigree Function: {dpf}", ln=True)
+                pdf.cell(0, 10, f"Age: {age}", ln=True)
+                pdf.cell(0, 10, f"Prediction: {'Diabetic' if prediction == 1 else 'Not Diabetic'}", ln=True)
+                pdf.ln(10)
+                pdf.cell(0, 10, "Thanks for using GlucoPredict!", ln=True)
+
+                pdf_bytes = pdf.output(dest='S').encode('latin1')
+
+                # Email PDF report
+                if send_email_with_pdf(email, pdf_bytes, name):
+                    st.success("📩 PDF report sent to your email successfully!")
+                else:
+                    st.warning("⚠️ PDF report could not be sent. Please check your email address.")
 
             except Exception as e:
                 st.error(f"❌ Error during prediction: {e}")
@@ -249,6 +304,7 @@ with tab3:
                     "text/csv"
                 )
 
+                # Generate PDF of history table
                 pdf = FPDF()
                 pdf.add_page()
                 pdf.set_font("Arial", 'B', 14)
@@ -259,10 +315,12 @@ with tab3:
                 page_width = pdf.w - 2 * pdf.l_margin
                 col_width = page_width / len(history_df.columns)
 
+                # Header row
                 for col_name in history_df.columns:
                     pdf.cell(col_width, 10, col_name, border=1)
                 pdf.ln()
 
+                # Data rows (limit to 50)
                 for i, row in history_df.iterrows():
                     for item in row:
                         text = str(item)
@@ -274,9 +332,11 @@ with tab3:
                         pdf.cell(0, 10, "... more rows omitted ...", 0, 1, 'C')
                         break
 
+                pdf_bytes = pdf.output(dest='S').encode('latin1')
+
                 st.download_button(
                     "⬇ Download History PDF",
-                    pdf.output(dest='S').encode('latin1'),
+                    pdf_bytes,
                     "user_prediction_history.pdf",
                     "application/pdf"
                 )
