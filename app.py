@@ -3,8 +3,10 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-import joblib  # 🆕 Added for saving the model and scaler
+import joblib
 
 # Step 1: Load Dataset
 data = pd.read_csv('diabetes.csv')
@@ -36,19 +38,33 @@ X_test = scaler.transform(X_test)
 
 print("\n✅ Data splitting and scaling completed.")
 
-# Step 4: Model Training
-model = LogisticRegression()
-model.fit(X_train, y_train)
+# Step 4: Train All Models
+logistic_model = LogisticRegression()
+rf_model = RandomForestClassifier(random_state=42)
+xgb_model = XGBClassifier(use_label_encoder=False, eval_metric='logloss')
 
-# Step 5: Prediction & Accuracy Evaluation
-y_pred = model.predict(X_test)
+logistic_model.fit(X_train, y_train)
+rf_model.fit(X_train, y_train)
+xgb_model.fit(X_train, y_train)
+
+# Step 5: Evaluate Each Model
+models = {
+    "Logistic Regression": logistic_model,
+    "Random Forest": rf_model,
+    "XGBoost": xgb_model
+}
 
 print("\n🎯 Model Evaluation Results:")
-print("Accuracy:", accuracy_score(y_test, y_pred))
-print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
-print("Classification Report:\n", classification_report(y_test, y_pred))
+for name, model in models.items():
+    y_pred = model.predict(X_test)
+    print(f"\n📌 {name} Results:")
+    print("Accuracy:", accuracy_score(y_test, y_pred))
+    print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
+    print("Classification Report:\n", classification_report(y_test, y_pred))
 
-# Step 6: Save Model & Scaler using joblib
-joblib.dump(model, 'diabetes_model.pkl')
+# Step 6: Save All Models & Scaler
+joblib.dump(logistic_model, 'logistic_model.pkl')
+joblib.dump(rf_model, 'rf_model.pkl')
+joblib.dump(xgb_model, 'xgb_model.pkl')
 joblib.dump(scaler, 'scaler.pkl')
-print("\n💾 Model and Scaler saved successfully!")
+print("\n💾 All models and scaler saved successfully!")

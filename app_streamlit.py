@@ -5,6 +5,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import joblib
 import base64
+from sklearn.metrics import confusion_matrix, classification_report, roc_curve, auc
 
 # ---------- Page Config ----------
 st.set_page_config(page_title="GlucoPredict – Early Diabetes Alert", layout="centered")
@@ -68,6 +69,27 @@ except Exception as e:
     st.error(f"Error loading model, scaler or dataset: {e}")
     st.stop()
 
+# ---------- ROC Curve plotting function ----------
+def plot_roc_curve(model, X_test, y_test):
+    try:
+        y_prob = model.predict_proba(X_test)[:, 1]
+        fpr, tpr, _ = roc_curve(y_test, y_prob)
+        roc_auc = auc(fpr, tpr)
+
+        fig, ax = plt.subplots()
+        ax.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
+        ax.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+        ax.set_xlim([0.0, 1.0])
+        ax.set_ylim([0.0, 1.05])
+        ax.set_xlabel('False Positive Rate')
+        ax.set_ylabel('True Positive Rate')
+        ax.set_title('Receiver Operating Characteristic')
+        ax.legend(loc="lower right")
+        return fig
+    except Exception as e:
+        st.warning(f"ROC Error: {e}")
+        return None
+
 # ---------- Sidebar Visualizations ----------
 st.sidebar.title("📊 Data Insights")
 
@@ -81,6 +103,35 @@ if st.sidebar.checkbox("Show Heatmap"):
     fig, ax = plt.subplots(figsize=(8, 4))
     sns.heatmap(data.corr(), annot=True, cmap='coolwarm', ax=ax)
     st.sidebar.pyplot(fig)
+
+# ---------- Model Evaluation Section ----------
+st.sidebar.markdown("---")
+st.sidebar.title("🧪 Model Evaluation")
+
+# Prepare data for evaluation
+X = data.drop("Outcome", axis=1)
+y = data["Outcome"]
+X_scaled = scaler.transform(X)
+
+if st.sidebar.checkbox("📌 Show Evaluation Metrics"):
+    y_pred = model.predict(X_scaled)
+
+    st.sidebar.subheader("🔹 Confusion Matrix")
+    cm = confusion_matrix(y, y_pred)
+    fig_cm, ax_cm = plt.subplots()
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax_cm)
+    ax_cm.set_xlabel("Predicted")
+    ax_cm.set_ylabel("Actual")
+    st.sidebar.pyplot(fig_cm)
+
+    st.sidebar.subheader("🔹 Classification Report")
+    report_text = classification_report(y, y_pred, output_dict=False)
+    st.sidebar.code(report_text)
+
+    st.sidebar.subheader("🔹 ROC Curve")
+    fig_roc = plot_roc_curve(model, X_scaled, y)
+    if fig_roc:
+        st.sidebar.pyplot(fig_roc)
 
 # ---------- Main Title ----------
 st.title("🯪 GlucoPredict – Early Diabetes Alert")
