@@ -1,3 +1,4 @@
+
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -12,22 +13,131 @@ from fpdf import FPDF
 import csv
 import smtplib
 from email.message import EmailMessage
+import random
+import time
+import re
 
-# ---------- Initialize user history file ----------
-history_file = "user_history.csv"
-columns = [
-    "Timestamp", "Name", "Email", "Address", "BloodGroup",
-    "Pregnancies", "Glucose", "BloodPressure", "SkinThickness",
-    "Insulin", "BMI", "DiabetesPedigreeFunction", "Age", "Prediction"
-]
-
-if not os.path.exists(history_file):
-    pd.DataFrame(columns=columns).to_csv(history_file, index=False, quoting=csv.QUOTE_ALL)
-
-# ---------- Page Config ----------
+# ✅ Page Config
 st.set_page_config(page_title="GlucoPredict – Early Diabetes Alert", layout="centered")
 
-# ---------- Background Style ----------
+# ---------------------- Background Styling ----------------------
+def set_bg(image_file):
+    with open(image_file, "rb") as f:
+        encoded = base64.b64encode(f.read()).decode()
+    st.markdown(f"""
+        <style>
+        .stApp {{
+            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)),
+                        url("data:image/jpg;base64,{encoded}") no-repeat center center fixed;
+            background-size: cover;
+        }}
+        h1, h2, h3, h4, h5, h6 {{
+            color: #fff !important;
+            text-shadow: 1px 1px 3px black;
+        }}
+        .subtitle, p, label, .stMarkdown, .stNumberInput label {{
+            color: #f0f0f0 !important;
+        }}
+        input, .stTextInput input {{
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #fff !important;
+        }}
+        .stButton>button, .stDownloadButton>button {{
+            background-color: #2e7d32;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 16px;
+        }}
+        </style>
+    """, unsafe_allow_html=True)
+
+# ---------------------- Utility: Validate Email/Mobile ----------------------
+def is_valid_email_or_mobile(user_input):
+    email_regex = r'^\S+@\S+\.\S+$'
+    mobile_regex = r'^\d{10}$'
+    return re.match(email_regex, user_input) or re.match(mobile_regex, user_input)
+
+# ---------------------- OTP Handling ----------------------
+def send_otp():
+    otp = random.randint(100000, 999999)
+    st.session_state['generated_otp'] = str(otp)
+    st.session_state['otp_sent_time'] = time.time()
+    st.info(f"📩 Your OTP is: {otp}")  # For demo
+
+# ---------------------- Login/Register ----------------------
+def login_page():
+    st.markdown("## 🔐 Login / Register with OTP")
+    name = st.text_input("👤 Full Name")
+    user_input = st.text_input("📧 Email / Mobile Number")
+
+    if st.button("📨 Send OTP"):
+        if not name.strip() or not user_input.strip():
+            st.warning("⚠️ Please fill all fields.")
+        elif not is_valid_email_or_mobile(user_input):
+            st.error("❌ Invalid format.")
+        else:
+            st.session_state['user'] = user_input.strip()
+            st.session_state['name'] = name.strip()
+            send_otp()
+            st.session_state['otp_sent'] = True
+
+    if st.session_state.get('otp_sent', False):
+        elapsed = int(time.time() - st.session_state.get('otp_sent_time', 0))
+        time_left = max(0, 30 - elapsed)
+        st.markdown("### 🔐 Enter 6-digit OTP:")
+        cols = st.columns(6)
+        otp_input = "".join(cols[i].text_input(f"{i+1}", max_chars=1, key=f"otp{i}") for i in range(6))
+
+        if st.button("✅ Verify OTP"):
+            if otp_input == st.session_state.get('generated_otp'):
+                st.success(f"🎉 Welcome, {st.session_state['name']}!")
+                st.balloons()
+                st.session_state['logged_in'] = True
+
+                df = pd.read_csv("user_history.csv") if os.path.exists("user_history.csv") else pd.DataFrame(columns=["Name", "Email", "Timestamp"])
+                if st.session_state['user'] not in df['Email'].values:
+                    df.loc[len(df)] = [st.session_state['name'], st.session_state['user'], datetime.now()]
+                    df.to_csv("user_history.csv", index=False)
+                st.rerun()
+            else:
+                st.error("❌ Invalid OTP.")
+
+        if time_left > 0:
+            st.info(f"⏳ Resend OTP in {time_left}s")
+        else:
+            if st.button("🔁 Resend OTP"):
+                send_otp()
+
+# ---------------------- Logout ----------------------
+def logout():
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.rerun()
+
+# ---------------------- Main App ----------------------
+def main_app():
+    st.title("🩺 GlucoPredict Dashboard")
+    st.success(f"👋 Welcome back, {st.session_state['name']}!")
+    if st.button("Logout 🔒"):
+        logout()
+
+# ---------------------- Routing ----------------------
+if 'logged_in' not in st.session_state:
+    st.session_state['logged_in'] = False
+
+if not st.session_state['logged_in']:
+    set_bg("bg.jpg")
+    login_page()
+    st.stop()
+else:
+    set_bg("Bg.png")
+    main_app()
+
+
+
+
+# ---------------------- Background Style ----------------------
 def set_bg(image_file):
     with open(image_file, "rb") as f:
         encoded = base64.b64encode(f.read()).decode()
@@ -61,61 +171,48 @@ def set_bg(image_file):
 
 set_bg("Bg.png")
 
-# ---------- Load Model and Data ----------
+# ---------------------- Initialize History File ----------------------
+history_file = "user_history.csv"
+columns = [
+    "Timestamp", "Name", "Email", "Address", "BloodGroup",
+    "Pregnancies", "Glucose", "BloodPressure", "SkinThickness",
+    "Insulin", "BMI", "DiabetesPedigreeFunction", "Age", "Prediction"
+]
+
+if not os.path.exists(history_file):
+    pd.DataFrame(columns=columns).to_csv(history_file, index=False, quoting=csv.QUOTE_ALL)
+
+# ---------------------- Load Scaler & Data ----------------------
 try:
-    model = joblib.load('diabetes_model.pkl')
     scaler = joblib.load('scaler.pkl')
     data = pd.read_csv('diabetes.csv')
 except Exception as e:
-    st.error(f"Error loading model or data: {e}")
+    st.error(f"Error loading scaler or data: {e}")
     st.stop()
 
-# ---------- ROC Curve Function ----------
-def plot_roc_curve(model, X_test, y_test):
-    try:
-        y_prob = model.predict_proba(X_test)[:, 1]
-        fpr, tpr, _ = roc_curve(y_test, y_prob)
-        roc_auc = auc(fpr, tpr)
-        fig, ax = plt.subplots()
-        ax.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
-        ax.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-        ax.set_xlim([0.0, 1.0])
-        ax.set_ylim([0.0, 1.05])
-        ax.set_xlabel('False Positive Rate')
-        ax.set_ylabel('True Positive Rate')
-        ax.set_title('Receiver Operating Characteristic')
-        ax.legend(loc="lower right")
-        return fig
-    except Exception as e:
-        st.warning(f"ROC Error: {e}")
-        return None
-
-# ---------- Email Sending Function ----------
-def send_email_with_pdf(receiver_email, pdf_bytes, user_name):
-    try:
-        sender_email = "glucopredict@gmail.com"  # CHANGE THIS
-        app_password = "iwxr fvro riji wcvy"    # CHANGE THIS (Gmail App Password)
-
-        msg = EmailMessage()
-        msg['Subject'] = '🧾 Your Diabetes Prediction Report'
-        msg['From'] = sender_email
-        msg['To'] = receiver_email
-        msg.set_content(f"Hi {user_name},\n\nPlease find attached your diabetes prediction report.\n\nStay healthy!\n- GlucoPredict")
-
-        msg.add_attachment(pdf_bytes, maintype='application', subtype='pdf', filename='Diabetes_Report.pdf')
-
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-            smtp.login(sender_email, app_password)
-            smtp.send_message(msg)
-
-        return True
-    except Exception as e:
-        st.error(f"❌ Failed to send email: {e}")
-        return False
-
-# ---------- Sidebar ----------
+# ---------------------- Sidebar ----------------------
 st.sidebar.title("📊 Data Insights")
+st.sidebar.subheader("🧠 Select Model")
 
+model_choice = st.sidebar.selectbox(
+    "Choose a Prediction Model",
+    ("Logistic Regression", "Random Forest", "XGBoost")
+)
+
+model_files = {
+    "Logistic Regression": "logistic_model.pkl",
+    "Random Forest": "rf_model.pkl",
+    "XGBoost": "xgb_model.pkl"
+}
+
+try:
+    model = joblib.load(model_files[model_choice])
+    st.sidebar.success(f"{model_choice} loaded successfully.")
+except Exception as e:
+    st.sidebar.error(f"Error loading model: {e}")
+    st.stop()
+
+# Optional Sidebar visualizations
 if st.sidebar.checkbox("Show Data Head"):
     st.sidebar.dataframe(data.head())
 
@@ -127,38 +224,19 @@ if st.sidebar.checkbox("Show Heatmap"):
     sns.heatmap(data.corr(), annot=True, cmap='coolwarm', ax=ax)
     st.sidebar.pyplot(fig)
 
-st.sidebar.markdown("---")
-st.sidebar.title("🧪 Model Evaluation")
-
-X = data.drop("Outcome", axis=1)
-y = data["Outcome"]
-X_scaled = scaler.transform(X)
-
-if st.sidebar.checkbox("📌 Show Evaluation Metrics"):
-    y_pred = model.predict(X_scaled)
-    st.sidebar.subheader("🔹 Confusion Matrix")
-    cm = confusion_matrix(y, y_pred)
-    fig_cm, ax_cm = plt.subplots()
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax_cm)
-    ax_cm.set_xlabel("Predicted")
-    ax_cm.set_ylabel("Actual")
-    st.sidebar.pyplot(fig_cm)
-
-    st.sidebar.subheader("🔹 Classification Report")
-    report_text = classification_report(y, y_pred, output_dict=False)
-    st.sidebar.code(report_text)
-
-    st.sidebar.subheader("🔹 ROC Curve")
-    fig_roc = plot_roc_curve(model, X_scaled, y)
-    if fig_roc:
-        st.sidebar.pyplot(fig_roc)
-
-# ---------- Main Title ----------
+# ---------------------- Main Tabs ----------------------
 st.title("🯪 GlucoPredict – Early Diabetes Alert")
-st.markdown('<p class="subtitle">Use manual input or upload a CSV to get predictions.</p>', unsafe_allow_html=True)
+st.markdown(f'<p class="subtitle">Use manual input or upload a CSV to get predictions.<br>Currently Using Model: <b>{model_choice}</b></p>', unsafe_allow_html=True)
 
 tabs = st.tabs(["📝 Manual Input", "📂 CSV Upload", "📜 User History"])
 tab1, tab2, tab3 = tabs
+
+# 🔁 Continue with your Tab logic exactly as you already have for tab1, tab2, tab3
+
+# 🟢 You don’t need to change any logic below this, just make sure:
+# - `st.set_page_config` is only at top
+# - `st.stop()` is used right after `login_page()` to prevent loading other content unless logged in
+
 
 # ---------- Tab 1: Manual Input ----------
 with tab1:
@@ -249,6 +327,28 @@ with tab1:
                 pdf_bytes = pdf.output(dest='S').encode('latin1')
 
                 # Email PDF report
+                def send_email_with_pdf(receiver_email, pdf_bytes, user_name):
+                    try:
+                        sender_email = "glucopredict@gmail.com"  # CHANGE THIS
+                        app_password = "iwxr fvro riji wcvy"    # CHANGE THIS (Gmail App Password)
+
+                        msg = EmailMessage()
+                        msg['Subject'] = '🧾 Your Diabetes Prediction Report'
+                        msg['From'] = sender_email
+                        msg['To'] = receiver_email
+                        msg.set_content(f"Hi {user_name},\n\nPlease find attached your diabetes prediction report.\n\nStay healthy!\n- GlucoPredict")
+
+                        msg.add_attachment(pdf_bytes, maintype='application', subtype='pdf', filename='Diabetes_Report.pdf')
+
+                        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+                            smtp.login(sender_email, app_password)
+                            smtp.send_message(msg)
+
+                        return True
+                    except Exception as e:
+                        st.error(f"❌ Failed to send email: {e}")
+                        return False
+
                 if send_email_with_pdf(email, pdf_bytes, name):
                     st.success("📩 PDF report sent to your email successfully!")
                 else:
@@ -269,7 +369,10 @@ with tab2:
             df = pd.read_csv(uploaded_file)
             st.write("✅ Uploaded Data Preview:", df.head())
 
-            required_cols = columns[5:-1]
+            required_cols = [
+                "Pregnancies", "Glucose", "BloodPressure", "SkinThickness",
+                "Insulin", "BMI", "DiabetesPedigreeFunction", "Age"
+            ]
             if not all(col in df.columns for col in required_cols):
                 missing_cols = list(set(required_cols) - set(df.columns))
                 st.error(f"Missing columns: {missing_cols}")
