@@ -11,6 +11,7 @@ from datetime import datetime
 from sklearn.metrics import confusion_matrix, classification_report, roc_curve, auc
 from fpdf import FPDF
 import csv
+import requests 
 import smtplib
 from email.message import EmailMessage
 import random
@@ -260,22 +261,37 @@ with tab1:
             age = st.number_input("Age", 1, 120, 30)
         submitted = st.form_submit_button("🔍 Predict")
 
-    if submitted:
-        if not name or not email or not address:
-            st.warning("⚠️ Please fill out all personal details (Name, Email, Address) before submitting.")
-        else:
-            try:
-                input_data = np.array([[pregnancies, glucose, bp, skin, insulin, bmi, dpf, age]])
-                scaled_input = scaler.transform(input_data)
-                prediction = model.predict(scaled_input)[0]
+   # ensure ki top me import ho
 
+if submitted:
+    if not name or not email or not address:
+        st.warning("⚠️ Please fill out all personal details (Name, Email, Address) before submitting.")
+    else:
+        try:
+            # Backend ko bhejne ke liye input data
+            payload = {
+                "Pregnancies": pregnancies,
+                "Glucose": glucose,
+                "BloodPressure": bp,
+                "SkinThickness": skin,
+                "Insulin": insulin,
+                "BMI": bmi,
+                "DiabetesPedigreeFunction": dpf,
+                "Age": age
+            }
+
+            # Backend API call karo
+            response = requests.post("http://127.0.0.1:5000/predict", json=payload)
+
+            if response.status_code == 200:
+                prediction = response.json()['prediction']  # "Diabetic" ya "Not Diabetic"
                 st.subheader("📢 Prediction Result:")
-                if prediction == 1:
+                if prediction == "Diabetic":
                     st.error("⚠️ You may have **diabetes**. Please consult a doctor.")
                 else:
                     st.success("✅ You are likely not diabetic. Keep it up! 💪")
 
-                # Save to history CSV
+                # Save to history CSV (Prediction ko "Diabetic"/"Not Diabetic" string me save karo)
                 new_row = pd.DataFrame([{
                     "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "Name": name,
@@ -290,7 +306,7 @@ with tab1:
                     "BMI": bmi,
                     "DiabetesPedigreeFunction": dpf,
                     "Age": age,
-                    "Prediction": "Diabetic" if prediction == 1 else "Not Diabetic"
+                    "Prediction": prediction
                 }])
 
                 if not os.path.exists(history_file) or os.stat(history_file).st_size == 0:
@@ -320,13 +336,13 @@ with tab1:
                 pdf.cell(0, 10, f"BMI: {bmi}", ln=True)
                 pdf.cell(0, 10, f"Diabetes Pedigree Function: {dpf}", ln=True)
                 pdf.cell(0, 10, f"Age: {age}", ln=True)
-                pdf.cell(0, 10, f"Prediction: {'Diabetic' if prediction == 1 else 'Not Diabetic'}", ln=True)
+                pdf.cell(0, 10, f"Prediction: {prediction}", ln=True)
                 pdf.ln(10)
                 pdf.cell(0, 10, "Thanks for using GlucoPredict!", ln=True)
 
                 pdf_bytes = pdf.output(dest='S').encode('latin1')
 
-                # Email PDF report
+                # Email PDF report function
                 def send_email_with_pdf(receiver_email, pdf_bytes, user_name):
                     try:
                         sender_email = "glucopredict@gmail.com"  # CHANGE THIS
@@ -354,8 +370,10 @@ with tab1:
                 else:
                     st.warning("⚠️ PDF report could not be sent. Please check your email address.")
 
-            except Exception as e:
-                st.error(f"❌ Error during prediction: {e}")
+            else:
+                st.error(f"Backend error: {response.json().get('error', 'Unknown error')}")
+        except Exception as e:
+            st.error(f"❌ Error during prediction or communication with backend: {e}")
 
 # ---------- Tab 2: CSV Upload ----------
 with tab2:
