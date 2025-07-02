@@ -20,6 +20,10 @@ print("✅ MongoDB client connected successfully")
 db = client["diabetes"]
 collection = db["predictions"]
 
+@app.route('/', methods=['GET'])
+def home():
+    return "Welcome to GlucoPredict API"
+
 @app.route('/predict', methods=['POST'])
 def predict():
     data = request.json
