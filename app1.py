@@ -2,77 +2,81 @@ from flask import Flask, request, jsonify
 import joblib
 import numpy as np
 from pymongo import MongoClient
+from datetime import datetime
+import os
 
 app = Flask(__name__)
 
-# 1. Load the scaler and model once
-scaler = joblib.load('scaler.pkl')
-model = joblib.load('rf_model.pkl')  # Trained model
+# ✅ Load the scaler and model once
+try:
+    scaler = joblib.load('scaler.pkl')
+    model = joblib.load('rf_model.pkl')  # Use Random Forest model
+    print("✅ Model and Scaler loaded successfully")
+except Exception as e:
+    print(f"❌ Failed to load model or scaler: {e}")
+    exit()
 
-# ✅ MongoDB Atlas connection URI (with password encoded)
+# ✅ MongoDB Atlas connection URI
 mongo_uri = "mongodb+srv://GlucoPredict:Gluco123@cluster1.3hlg9y3.mongodb.net/diabetes?retryWrites=true&w=majority"
 
 # ✅ Connect to MongoDB
-client = MongoClient(mongo_uri)
-print("✅ MongoDB client connected successfully")
-
-# ✅ Select database and collection
-db = client["diabetes"]
-collection = db["predictions"]
+try:
+    client = MongoClient(mongo_uri)
+    db = client["diabetes"]
+    collection = db["predictions"]
+    print("✅ MongoDB client connected successfully")
+except Exception as e:
+    print(f"❌ MongoDB connection failed: {e}")
+    exit()
 
 @app.route('/', methods=['GET'])
 def home():
-    return "Welcome to GlucoPredict API"
+    return "🚀 Welcome to GlucoPredict API"
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    data = request.json
     try:
-        print("📩 Backend hit hua with data:", data)
+        data = request.json
+        print("📩 Request received with data:", data)
 
-        # Extract features from incoming JSON
-        features = [
-            data['Pregnancies'],
-            data['Glucose'],
-            data['BloodPressure'],
-            data['SkinThickness'],
-            data['Insulin'],
-            data['BMI'],
-            data['DiabetesPedigreeFunction'],
-            data['Age']
-        ]
-        print(f"🔢 Features received: {features}")
+        # Validate required keys
+        required_keys = ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness',
+                         'Insulin', 'BMI', 'DiabetesPedigreeFunction', 'Age']
+        if not all(k in data for k in required_keys):
+            return jsonify({"error": "Missing required input fields"}), 400
 
-        # Preprocess features
-        features_np = np.array(features).reshape(1, -1)
-        scaled_features = scaler.transform(features_np)
+        # Extract & preprocess features
+        features = np.array([data[k] for k in required_keys]).reshape(1, -1)
+        print(f"🔢 Features extracted: {features}")
+
+        scaled_features = scaler.transform(features)
         print(f"⚙️ Scaled features: {scaled_features}")
 
-        # Make prediction
+        # Prediction
         prediction = model.predict(scaled_features)[0]
         result = "Diabetic" if prediction == 1 else "Not Diabetic"
         print(f"🎯 Prediction result: {result}")
 
-        # Save to MongoDB
-        insert_result = collection.insert_one({
-            "Pregnancies": data['Pregnancies'],
-            "Glucose": data['Glucose'],
-            "BloodPressure": data['BloodPressure'],
-            "SkinThickness": data['SkinThickness'],
-            "Insulin": data['Insulin'],
-            "BMI": data['BMI'],
-            "DiabetesPedigreeFunction": data['DiabetesPedigreeFunction'],
-            "Age": data['Age'],
-            "Prediction": result
-        })
-        print(f"💾 Data inserted with id: {insert_result.inserted_id}")
+        # Save to MongoDB with timestamp
+        record = {k: data[k] for k in required_keys}
+        record["Prediction"] = result
+        record["Timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        insert_result = collection.insert_one(record)
+        print(f"💾 Data inserted into MongoDB with ID: {insert_result.inserted_id}")
 
         return jsonify({"prediction": result})
 
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
-        return jsonify({"error": str(e)}), 400
+        print(f"❌ Error during prediction: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
-# ✅ RUNNING FLASK ON PORT 5000
+# ✅ Start the Flask server
 if __name__ == '__main__':
-    app.run(debug=True, use_reloader=False, port=5000)
+    PORT = int(os.environ.get('PORT', 5000))  # fallback to port 5000
+    print(f"🚀 Starting Flask server on http://127.0.0.1:{PORT}")
+    app.run(debug=True, use_reloader=False, port=PORT)
+
+# 🚨 Optional CORS Setup (uncomment if needed for cross-origin requests)
+# from flask_cors import CORS
+# CORS(app)
