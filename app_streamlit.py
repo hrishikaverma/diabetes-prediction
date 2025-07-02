@@ -288,8 +288,84 @@ with tab1:
                         else:
                             st.success("✅ You are likely not diabetic. Keep it up! 💪")
 
-                        # Save to history CSV ...
-                        # (Your existing save and PDF/email logic here)
+                        # Save to history CSV
+                        new_row = pd.DataFrame([{
+                            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "Name": name,
+                            "Email": email,
+                            "Address": address,
+                            "BloodGroup": blood_group,
+                            "Pregnancies": pregnancies,
+                            "Glucose": glucose,
+                            "BloodPressure": bp,
+                            "SkinThickness": skin,
+                            "Insulin": insulin,
+                            "BMI": bmi,
+                            "DiabetesPedigreeFunction": dpf,
+                            "Age": age,
+                            "Prediction": prediction
+                        }])
+
+                        if not os.path.exists(history_file) or os.stat(history_file).st_size == 0:
+                            new_row.to_csv(history_file, index=False, quoting=csv.QUOTE_ALL)
+                        else:
+                            new_row.to_csv(history_file, mode='a', header=False, index=False, quoting=csv.QUOTE_ALL)
+
+                        st.success("✅ User data and prediction saved to history.")
+                        st.dataframe(new_row)
+
+                        # Create PDF report
+                        pdf = FPDF()
+                        pdf.add_page()
+                        pdf.set_font("Arial", 'B', 14)
+                        pdf.cell(0, 10, "Diabetes Prediction Report", 0, 1, 'C')
+                        pdf.set_font("Arial", size=12)
+                        pdf.ln(5)
+                        pdf.cell(0, 10, f"Name: {name}", ln=True)
+                        pdf.cell(0, 10, f"Email: {email}", ln=True)
+                        pdf.cell(0, 10, f"Address: {address}", ln=True)
+                        pdf.cell(0, 10, f"Blood Group: {blood_group}", ln=True)
+                        pdf.cell(0, 10, f"Pregnancies: {pregnancies}", ln=True)
+                        pdf.cell(0, 10, f"Glucose: {glucose}", ln=True)
+                        pdf.cell(0, 10, f"Blood Pressure: {bp}", ln=True)
+                        pdf.cell(0, 10, f"Skin Thickness: {skin}", ln=True)
+                        pdf.cell(0, 10, f"Insulin: {insulin}", ln=True)
+                        pdf.cell(0, 10, f"BMI: {bmi}", ln=True)
+                        pdf.cell(0, 10, f"Diabetes Pedigree Function: {dpf}", ln=True)
+                        pdf.cell(0, 10, f"Age: {age}", ln=True)
+                        pdf.cell(0, 10, f"Prediction: {prediction}", ln=True)
+                        pdf.ln(10)
+                        pdf.cell(0, 10, "Thanks for using GlucoPredict!", ln=True)
+
+                        pdf_bytes = pdf.output(dest='S').encode('latin1')
+
+                        # Email PDF report function
+                        def send_email_with_pdf(receiver_email, pdf_bytes, user_name):
+                            try:
+                                sender_email = "glucopredict@gmail.com"  # CHANGE THIS
+                                app_password = "iwxr fvro riji wcvy"       # CHANGE THIS (Gmail App Password)
+
+                                msg = EmailMessage()
+                                msg['Subject'] = '🧾 Your Diabetes Prediction Report'
+                                msg['From'] = sender_email
+                                msg['To'] = receiver_email
+                                msg.set_content(f"Hi {user_name},\n\nPlease find attached your diabetes prediction report.\n\nStay healthy!\n- GlucoPredict")
+
+                                msg.add_attachment(pdf_bytes, maintype='application', subtype='pdf', filename='Diabetes_Report.pdf')
+
+                                with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+                                    smtp.login(sender_email, app_password)
+                                    smtp.send_message(msg)
+
+                                return True
+                            except Exception as e:
+                                st.error(f"❌ Failed to send email: {e}")
+                                return False
+
+                        if send_email_with_pdf(email, pdf_bytes, name):
+                            st.success("📩 PDF report sent to your email successfully!")
+                        else:
+                            st.warning("⚠️ PDF report could not be sent. Please check your email address.")
 
                     else:
                         st.error(f"Backend error: {response.json().get('error', 'Unknown error')}")
