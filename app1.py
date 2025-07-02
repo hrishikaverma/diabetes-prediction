@@ -73,5 +73,6 @@ def predict():
         print(f"❌ Error: {str(e)}")
         return jsonify({"error": str(e)}), 400
 
+# ✅ RUNNING FLASK ON PORT 5000
 if __name__ == '__main__':
-    app.run(debug=True, use_reloader=False)
+    app.run(debug=True, use_reloader=False, port=5000)
