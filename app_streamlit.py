@@ -268,6 +268,8 @@ with tab1:
             else:
                 try:
                     payload = {
+                        "Name": name,            # ✅ ADD THIS
+                        "Email": email,          # ✅ AND THIS
                         "Pregnancies": pregnancies,
                         "Glucose": glucose,
                         "BloodPressure": bp,
@@ -278,7 +280,8 @@ with tab1:
                         "Age": age
                     }
 
-                    response = requests.post("http://127.0.0.1:10000/predict", json=payload)
+                    response = requests.post("http://127.0.0.1:5000/predict", json=payload)
+
 
                     if response.status_code == 200:
                         prediction = response.json()['prediction']

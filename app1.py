@@ -39,11 +39,15 @@ def predict():
         data = request.json
         print("📩 Request received with data:", data)
 
-        # Validate required keys
+        # Required model input features
         required_keys = ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness',
                          'Insulin', 'BMI', 'DiabetesPedigreeFunction', 'Age']
         if not all(k in data for k in required_keys):
             return jsonify({"error": "Missing required input fields"}), 400
+
+        # ✅ Optional fields for user info
+        user_name = data.get("Name", "Guest")
+        user_email = data.get("Email", "Unknown")
 
         # Extract & preprocess features
         features = np.array([data[k] for k in required_keys]).reshape(1, -1)
@@ -57,10 +61,17 @@ def predict():
         result = "Diabetic" if prediction == 1 else "Not Diabetic"
         print(f"🎯 Prediction result: {result}")
 
-        # Save to MongoDB with timestamp
-        record = {k: data[k] for k in required_keys}
-        record["Prediction"] = result
-        record["Timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # ✅ Save everything to MongoDB including Email & Name
+        record = {
+            "Name": user_name,
+            "Email": user_email,
+            "Prediction": result,
+            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+        # Add feature values to the record
+        for k in required_keys:
+            record[k] = data[k]
 
         insert_result = collection.insert_one(record)
         print(f"💾 Data inserted into MongoDB with ID: {insert_result.inserted_id}")
@@ -76,7 +87,3 @@ if __name__ == '__main__':
     PORT = int(os.environ.get('PORT', 5000))  # fallback to port 5000
     print(f"🚀 Starting Flask server on http://127.0.0.1:{PORT}")
     app.run(debug=True, use_reloader=False, port=PORT)
-
-# 🚨 Optional CORS Setup (uncomment if needed for cross-origin requests)
-# from flask_cors import CORS
-# CORS(app)
